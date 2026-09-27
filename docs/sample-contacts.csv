@@ -1,0 +1,5 @@
+Name,Email,Notes
+Alex,alex@demo.example,Sample contact only
+Sam,sam@demo.example,Sample contact only
+Alex again,ALEX@demo.example,Duplicate address
+Invalid,bad@@demo.example,Rejected by validation
