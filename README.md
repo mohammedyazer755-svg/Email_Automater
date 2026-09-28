@@ -39,6 +39,20 @@ The local account stores its database and attachments on disk, so deploy the app
 
 Railway documents [Dockerfile builds](https://docs.railway.com/builds/dockerfiles) and [persistent volumes](https://docs.railway.com/volumes). A volume mount is necessary because app storage must survive deploys/restarts. Railway currently lists a free trial with $5 credits for 30 days, then $1/month and 0.5 GB volume; its Hobby plan has $5/month minimum usage. Check [current pricing](https://railway.com/pricing) before deploying. Real email sends still require a Resend API key and verified sender.
 
+## Send from Gmail without a custom domain
+
+The Gmail option sends through Google Apps Script over HTTPS, so it works on Railway trial/free plans and does not require Resend or a domain. In the deployed app, open **Settings ? Provider ? Gmail (Google Apps Script)**.
+
+1. While signed into the Gmail account you want to send from, open [Google Apps Script](https://script.google.com/home) and click **New project**.
+2. Replace the starter code in `Code.gs` with the contents of [`google-apps-script/Code.gs`](google-apps-script/Code.gs). Replace `REPLACE_WITH_YOUR_GMAIL_ADDRESS` with your Gmail address. Save.
+3. At the top function picker, select `setupRelay` and click **Run**. Approve Google?s permission prompt. Open **Execution log** and copy the generated relay secret.
+4. Select `authorizeGmail` and click **Run**. Approve its Gmail sending permission.
+5. Click **Deploy ? New deployment ? Web app**. Set **Execute as: Me** and **Who has access: Anyone**, then click **Deploy**. Copy the URL ending in `/exec`.
+6. In MailAutomator **Settings ? Provider**, choose **Gmail (Google Apps Script)**. Enter the same Gmail address, the `/exec` URL, and the relay secret from the execution log. Click **Save settings**.
+7. Open **Settings ? Senders**, add that same Gmail address, and click **Check verification**. Then select it in your campaign.
+
+The relay sends as the Gmail account that owns the script. Keep its URL and secret private. A consumer Google account currently has an Apps Script sending quota of 100 recipients per day; Google can change quotas. See [Google?s quota page](https://developers.google.com/apps-script/guides/services/quotas).
+
 ## Included
 
 - Multi-sheet CSV/XLS/XLSX parsing in a Web Worker, confidence scores, strict validation, source tracking, deduplication, and recipient review.

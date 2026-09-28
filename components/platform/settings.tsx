@@ -10,6 +10,9 @@ interface Settings {
   send_rate: number;
   timezone: string;
   has_provider_key: boolean;
+  provider_type: 'gmail_script' | 'resend';
+  provider_email: string;
+  gmail_relay_url: string;
   webhook_url: string;
 }
 export function SettingsPage({ sendersOnly = false }: { sendersOnly?: boolean }) {
@@ -55,6 +58,7 @@ function SettingsForm({
   reload: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [provider, setProvider] = useState(value.provider_type || 'resend');
   return (
     <Panel>
       <form
@@ -71,7 +75,14 @@ function SettingsForm({
                 ? { name: f.get('name'), avatar_url: f.get('avatar_url') }
                 : {
                     ...(tab === 'provider'
-                      ? { api_key: f.get('api_key'), webhook_secret: f.get('webhook_secret') }
+                      ? {
+                          provider: f.get('provider'),
+                          api_key: f.get('api_key'),
+                          gmail_email: f.get('gmail_email'),
+                          gmail_relay_url: f.get('gmail_relay_url'),
+                          gmail_relay_token: f.get('gmail_relay_token'),
+                          webhook_secret: f.get('webhook_secret'),
+                        }
                       : {}),
                   }),
             });
@@ -100,40 +111,115 @@ function SettingsForm({
         )}
         {tab === 'provider' && (
           <>
-            <h2 className="font-semibold">Resend</h2>
-            <p className="text-sm text-slate-500">
-              {value.has_provider_key
-                ? 'Your API key is stored encrypted. Leave the field blank to keep it.'
-                : 'Connect your Resend account to send emails.'}
-            </p>
-            <Field label="Resend API key">
-              <input
+            <Field label="Email sending service">
+              <select
                 className="control"
-                type="password"
-                autoComplete="new-password"
-                name="api_key"
-                placeholder="re_…"
-              />
+                name="provider"
+                value={provider}
+                onChange={(e) => setProvider(e.target.value as 'gmail_script' | 'resend')}
+              >
+                <option value="gmail_script">Gmail (Google Apps Script)</option>
+                <option value="resend">Resend (requires a verified domain)</option>
+              </select>
             </Field>
-            <Field label="Webhook signing secret">
-              <input
-                className="control"
-                type="password"
-                autoComplete="new-password"
-                name="webhook_secret"
-                placeholder="whsec_…"
-              />
-            </Field>
-            <p className="text-sm text-slate-500">
-              In Resend, create a webhook for email.delivered, email.bounced, email.complained and
-              email.failed using this endpoint:
-            </p>
-            <code className="break-all rounded-lg bg-slate-50 p-3 text-xs">
-              {value.webhook_url}
-            </code>
-            <p className="text-xs text-slate-500">
-              Use a key with sending and domain-read permissions. Provider quotas still apply.
-            </p>
+            {provider === 'gmail_script' ? (
+              <>
+                <h2 className="font-semibold">Connect Gmail using Google Apps Script</h2>
+                <p className="text-sm text-slate-500">
+                  Create the Apps Script relay in the Google account that should send the messages.
+                  It sends through Gmail over HTTPS, so it works on Railway without a custom domain.
+                </p>
+                <Field label="Gmail address">
+                  <input
+                    className="control"
+                    type="email"
+                    name="gmail_email"
+                    defaultValue={value.provider_email}
+                    placeholder="you@gmail.com"
+                    required
+                  />
+                </Field>
+                <Field label="Google Apps Script Web App URL">
+                  <input
+                    className="control"
+                    type="url"
+                    name="gmail_relay_url"
+                    defaultValue={
+                      value.provider_type === 'gmail_script' ? value.gmail_relay_url : ''
+                    }
+                    placeholder="https://script.google.com/macros/s/.../exec"
+                    required
+                  />
+                </Field>
+                <Field label="Gmail relay secret">
+                  <input
+                    className="control"
+                    type="password"
+                    name="gmail_relay_token"
+                    autoComplete="new-password"
+                    placeholder={
+                      value.provider_type === 'gmail_script'
+                        ? 'Leave blank to keep current secret'
+                        : 'Paste the secret from Apps Script'
+                    }
+                    required={value.provider_type !== 'gmail_script'}
+                  />
+                </Field>
+                <p className="text-sm text-slate-500">
+                  See{' '}
+                  <a
+                    className="link"
+                    href="https://script.google.com/home"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Google Apps Script
+                  </a>
+                  . Save the same long secret in the script and here. Gmail enforces its own sending
+                  limits.
+                </p>
+                <p className="text-sm text-slate-500">
+                  Gmail limits sending and may block bulk mail. Use this for small, wanted emails.
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="font-semibold">Resend</h2>
+                <p className="text-sm text-slate-500">
+                  {value.has_provider_key
+                    ? 'Your API key is stored encrypted. Leave the field blank to keep it.'
+                    : 'Connect your Resend account to send emails.'}
+                </p>
+                <Field label="Resend API key">
+                  <input
+                    className="control"
+                    type="password"
+                    autoComplete="new-password"
+                    name="api_key"
+                    placeholder="re_…"
+                  />
+                </Field>
+                <Field label="Webhook signing secret">
+                  <input
+                    className="control"
+                    type="password"
+                    autoComplete="new-password"
+                    name="webhook_secret"
+                    placeholder="whsec_…"
+                  />
+                </Field>
+                <p className="text-sm text-slate-500">
+                  In Resend, create a webhook for email.delivered, email.bounced, email.complained
+                  and email.failed using this endpoint:
+                </p>
+                <code className="break-all rounded-lg bg-slate-50 p-3 text-xs">
+                  {value.webhook_url}
+                </code>
+                <p className="text-xs text-slate-500">
+                  Use a key with sending and domain-read permissions. Provider quotas still apply.
+                </p>
+              </>
+            )}
           </>
         )}
         {tab === 'preferences' && (

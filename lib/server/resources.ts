@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { CronExpressionParser } from 'cron-parser';
 import { admin, checked } from './db';
 import { HttpError, body, page, session, limit } from './http';
-import { cleanHtml, csvCell, encrypt } from './security';
+import { cleanHtml, csvCell, decrypt, encrypt } from './security';
 import {
   automationInput,
   campaignInput,
@@ -523,10 +523,20 @@ export async function resources(req: Request, path: string[]) {
           .eq('user_id', user.id)
           .maybeSingle(),
       );
+      const savedCredential = row?.provider_key_encrypted
+        ? decrypt(row.provider_key_encrypted)
+        : '';
       return {
         send_rate: row?.send_rate || 1,
         timezone: row?.timezone || 'UTC',
         has_provider_key: !!row?.provider_key_encrypted,
+        provider_type: savedCredential.startsWith('gmail-script:') ? 'gmail_script' : 'resend',
+        provider_email: savedCredential.startsWith('gmail-script:')
+          ? savedCredential.slice(13).split('\n')[0]
+          : '',
+        gmail_relay_url: savedCredential.startsWith('gmail-script:')
+          ? savedCredential.slice(13).split('\n')[1] || ''
+          : '',
         email: user.email,
         name: user.user_metadata?.full_name || '',
         avatar_url: user.user_metadata?.avatar_url || '',
@@ -539,6 +549,10 @@ export async function resources(req: Request, path: string[]) {
           send_rate: z.number().int().min(1).max(10),
           timezone: z.string().max(100),
           api_key: z.string().max(300).optional(),
+          provider: z.enum(['resend', 'gmail_script']).optional(),
+          gmail_email: email.optional(),
+          gmail_relay_url: z.string().max(500).optional(),
+          gmail_relay_token: z.string().max(300).optional(),
           webhook_secret: z.string().max(300).optional(),
           name: z.string().max(200).optional(),
           avatar_url: z.union([z.string().url().startsWith('https://'), z.literal('')]).optional(),
@@ -549,7 +563,59 @@ export async function resources(req: Request, path: string[]) {
       } catch {
         throw new HttpError(400, 'Invalid timezone.');
       }
-      if (input.api_key) {
+      let providerCredential: string | undefined;
+      if (input.provider === 'gmail_script') {
+        if (!input.gmail_email)
+          throw new HttpError(400, 'Enter the Gmail address used by the Apps Script relay.');
+        let relayUrl: URL;
+        try {
+          relayUrl = new URL(input.gmail_relay_url || '');
+          if (
+            relayUrl.protocol !== 'https:' ||
+            relayUrl.hostname !== 'script.google.com' ||
+            !relayUrl.pathname.startsWith('/macros/s/') ||
+            !relayUrl.pathname.endsWith('/exec')
+          )
+            throw new Error();
+        } catch {
+          throw new HttpError(400, 'Paste the HTTPS Apps Script Web App URL ending in /exec.');
+        }
+        const relayToken = input.gmail_relay_token?.trim();
+        if (relayToken) {
+          if (relayToken.length < 32)
+            throw new HttpError(400, 'The Gmail relay secret must be at least 32 characters.');
+          providerCredential = `gmail-script:${input.gmail_email?.toLowerCase()}\n${relayUrl.href}\n${relayToken}`;
+        } else {
+          const current = checked(
+            await db
+              .from('user_settings')
+              .select('provider_key_encrypted')
+              .eq('user_id', user.id)
+              .maybeSingle(),
+          )?.provider_key_encrypted;
+          const value = current ? decrypt(current) : '';
+          if (
+            !value.startsWith(
+              `gmail-script:${input.gmail_email?.toLowerCase()}\n${relayUrl.href}\n`,
+            )
+          )
+            throw new HttpError(400, 'Enter the Gmail relay secret.');
+        }
+      } else if (input.provider === 'resend') {
+        if (input.api_key) providerCredential = input.api_key;
+        else if (input.api_key === '') {
+          const current = checked(
+            await db
+              .from('user_settings')
+              .select('provider_key_encrypted')
+              .eq('user_id', user.id)
+              .maybeSingle(),
+          )?.provider_key_encrypted;
+          if (!current || decrypt(current).startsWith('gmail-script:'))
+            throw new HttpError(400, 'Enter a Resend API key.');
+        }
+      }
+      if (providerCredential) {
         const pending = await db
           .from('email_queue')
           .select('id,campaigns!inner(user_id)', { count: 'exact', head: true })
@@ -567,7 +633,7 @@ export async function resources(req: Request, path: string[]) {
           user_id: user.id,
           send_rate: input.send_rate,
           timezone: input.timezone,
-          ...(input.api_key ? { provider_key_encrypted: encrypt(input.api_key) } : {}),
+          ...(providerCredential ? { provider_key_encrypted: encrypt(providerCredential) } : {}),
           ...(input.webhook_secret
             ? { webhook_secret_encrypted: encrypt(input.webhook_secret) }
             : {}),
