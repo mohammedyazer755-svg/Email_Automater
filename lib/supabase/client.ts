@@ -1,6 +1,9 @@
 import { createBrowserClient } from '@supabase/ssr';
 
+import { localMode } from '@/lib/local/config';
+import { localClient } from '@/lib/local/client';
 export function createClient() {
+  if (localMode) return localClient as unknown as ReturnType<typeof createBrowserClient>;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

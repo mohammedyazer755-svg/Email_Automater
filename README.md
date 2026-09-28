@@ -1,3 +1,11 @@
+## Personal local mode
+
+Set `NEXT_PUBLIC_LOCAL_MODE=true`, `LOCAL_LOGIN_EMAIL`, `LOCAL_LOGIN_PASSWORD`, and a random `LOCAL_SESSION_SECRET` (at least 32 characters) in `.env.local`. Keep the existing encryption key and cron secret. Restart `npm run dev`, open http://localhost:3000/login, and use those credentials. Google login and public signup are hidden in this mode. Supabase credentials are not needed.
+
+Contacts, templates, imports, campaigns, settings, and attachments are saved in `.local-data/` on this computer. Stop the app before backing up that directory, and preserve `.env.local` separately: its encryption key is needed to read saved provider credentials. Local mode supports one running server process; run it on a persistent computer, not a serverless host. Do not run development and production servers against the same directory simultaneously.
+
+Real email delivery still requires a Resend key and verified sender in Settings. The local worker checks scheduled work every 15 seconds while the app is running. Jobs wait while the app is closed; delivery webhooks require a publicly reachable URL. Changing the local session secret signs out existing sessions. Local data is separate from any existing Supabase data.
+
 # MailAutomator
 
 A Next.js application for turning messy spreadsheets into reviewed contact lists, writing email campaigns, and delivering individual messages through a persistent queue.

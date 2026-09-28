@@ -1,6 +1,9 @@
 import 'server-only';
 import { createClient } from '@supabase/supabase-js';
+import { localMode } from '@/lib/local/config';
+import { localDatabase } from '@/lib/local/database';
 export function admin() {
+  if (localMode) return localDatabase as unknown as ReturnType<typeof createClient>;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL,
     key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error('Server database configuration is missing.');

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { localMode } from '@/lib/local/config';
 import { createClient } from '@/lib/supabase/client';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
@@ -288,6 +289,18 @@ function ComposeForm({
                   await action(async () => {
                     if (attachments.reduce((n, a) => n + a.size, 0) + file.size > 10485760)
                       throw new Error('Attachments must total 10 MB or less.');
+                    if (localMode) {
+                      const form = new FormData();
+                      form.append('file', file);
+                      const response = await fetch('/api/attachments', {
+                        method: 'POST',
+                        body: form,
+                      });
+                      const upload = await response.json();
+                      if (!response.ok) throw new Error(upload.error || 'Upload failed');
+                      setAttachments([...attachments, upload]);
+                      return;
+                    }
                     const upload = await api<Attachment & { token: string }>(
                       'attachments/sign',
                       'POST',

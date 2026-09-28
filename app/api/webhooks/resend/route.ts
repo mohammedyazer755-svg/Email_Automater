@@ -1,3 +1,4 @@
+import { localMode } from '@/lib/local/config';
 import { Resend } from 'resend';
 import { z } from 'zod';
 import { admin, checked } from '@/lib/server/db';
@@ -5,7 +6,10 @@ import { handle, HttpError } from '@/lib/server/http';
 import { decrypt } from '@/lib/server/security';
 export async function POST(req: Request) {
   return handle(async () => {
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.NEXT_PUBLIC_SUPABASE_URL)
+    if (
+      !localMode &&
+      (!process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.NEXT_PUBLIC_SUPABASE_URL)
+    )
       throw new HttpError(503, 'Webhook storage is not configured.');
     const db = admin();
     const user = new URL(req.url).searchParams.get('user');

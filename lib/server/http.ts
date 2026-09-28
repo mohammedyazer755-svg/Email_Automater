@@ -1,3 +1,7 @@
+import { cookies } from 'next/headers';
+import { localMode } from '@/lib/local/config';
+import { cookieName, verifySession, localUser } from '@/lib/local/auth';
+import { database } from '@/lib/local/database';
 import { createClient } from '@/lib/supabase/server';
 import { admin, checked } from './db';
 import { ZodError } from 'zod';
@@ -14,6 +18,20 @@ export async function session(req: Request) {
     const origin = req.headers.get('origin');
     const expected = new URL(process.env.NEXT_PUBLIC_APP_URL || req.url).origin;
     if (origin !== expected) throw new HttpError(403, 'Request origin is not allowed.');
+  }
+  if (localMode) {
+    if (!verifySession((await cookies()).get(cookieName)?.value))
+      throw new HttpError(401, 'Sign in to continue.');
+    const user = localUser();
+    const profile = await (
+      await database()
+    ).query<{ metadata: typeof user.user_metadata }>(
+      'select metadata from local_profile where id=$1',
+      [user.id],
+    );
+    if (profile.rows[0])
+      user.user_metadata = { ...user.user_metadata, ...profile.rows[0].metadata };
+    return { user, db: admin() };
   }
   const auth = await createClient();
   const {

@@ -1,6 +1,8 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ['@electric-sql/pglite'],
+  outputFileTracingExcludes: { '*': ['.local-data/**/*', '.env*'] },
   distDir: process.env.NEXT_DIST_DIR || '.next',
   async headers() {
     return [

@@ -18,6 +18,7 @@ export default defineConfig({
           timeout: 120000,
           env: {
             NEXT_DIST_DIR: '.next-e2e',
+            NEXT_PUBLIC_LOCAL_MODE: 'false',
             NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:54329',
             NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key',
             NEXT_PUBLIC_APP_URL: 'http://localhost:3100',
