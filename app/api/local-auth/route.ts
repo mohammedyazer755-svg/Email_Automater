@@ -9,16 +9,13 @@ import {
   verifySession,
 } from '@/lib/local/auth';
 import { database } from '@/lib/local/database';
+import { isAllowedOrigin } from '@/lib/local/origin';
 import { body, handle, HttpError } from '@/lib/server/http';
 import { z } from 'zod';
 export const runtime = 'nodejs';
 function enabled(req: Request, mutation = false) {
   if (!localMode) throw new HttpError(404, 'Not found');
-  if (
-    mutation &&
-    req.headers.get('origin') !== new URL(process.env.NEXT_PUBLIC_APP_URL || req.url).origin
-  )
-    throw new HttpError(403, 'Request origin is not allowed.');
+  if (mutation && !isAllowedOrigin(req)) throw new HttpError(403, 'Request origin is not allowed.');
 }
 export function GET(req: Request) {
   return handle(async () => {

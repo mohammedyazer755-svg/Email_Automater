@@ -95,7 +95,7 @@ function LoginForm() {
         </CardTitle>
         <CardDescription className="text-xs text-slate-500">
           {localMode
-            ? 'Sign in to your personal workspace. Your data is saved on this computer.'
+            ? 'Sign in to your workspace.'
             : 'Enter your credentials to access your email automation campaigns'}
         </CardDescription>
       </CardHeader>

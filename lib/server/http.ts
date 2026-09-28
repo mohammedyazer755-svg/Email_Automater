@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { localMode } from '@/lib/local/config';
 import { cookieName, verifySession, localUser } from '@/lib/local/auth';
 import { database } from '@/lib/local/database';
+import { isAllowedOrigin } from '@/lib/local/origin';
 import { createClient } from '@/lib/supabase/server';
 import { admin, checked } from './db';
 import { ZodError } from 'zod';
@@ -15,9 +16,7 @@ export class HttpError extends Error {
 }
 export async function session(req: Request) {
   if (!['GET', 'HEAD'].includes(req.method)) {
-    const origin = req.headers.get('origin');
-    const expected = new URL(process.env.NEXT_PUBLIC_APP_URL || req.url).origin;
-    if (origin !== expected) throw new HttpError(403, 'Request origin is not allowed.');
+    if (!isAllowedOrigin(req)) throw new HttpError(403, 'Request origin is not allowed.');
   }
   if (localMode) {
     if (!verifySession((await cookies()).get(cookieName)?.value))
