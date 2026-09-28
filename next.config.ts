@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   serverExternalPackages: ['@electric-sql/pglite'],
   outputFileTracingExcludes: { '*': ['.local-data/**/*', '.env*'] },
   distDir: process.env.NEXT_DIST_DIR || '.next',

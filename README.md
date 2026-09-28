@@ -28,6 +28,17 @@ Open http://localhost:3000 and sign up. Add a Resend key, webhook secret, and ve
 
 Sending requires the scheduled worker. Configure an external scheduler or use the included Vercel cron to call `GET /api/jobs` every minute with `Authorization: Bearer CRON_SECRET`. The Send button queues work durably; it does not launch an unreliable detached request.
 
+## Share the local account online
+
+The local account stores its database and attachments on disk, so deploy the app as one persistent Docker service with a mounted volume. Do not deploy this mode to Vercel/serverless functions or run more than one replica: they do not share the local database. The repository includes a Dockerfile configured for Railway.
+
+1. Push this repository to GitHub, then in Railway create a project from `mohammedyazer755-svg/Email_Automater`, branch `main`. Railway detects the root `Dockerfile` and builds local mode into the app.
+2. In the app service, create and attach a volume with mount path `/app/.local-data`. Keep one app replica.
+3. In the service Variables tab add `LOCAL_LOGIN_EMAIL`, `LOCAL_LOGIN_PASSWORD` (use the same local credentials you plan to share), `LOCAL_SESSION_SECRET` (a new random value with at least 32 characters), `CRON_SECRET`, and `PROVIDER_KEY_ENCRYPTION_KEY` (64 hex characters). Set `NEXT_PUBLIC_APP_URL` to the public URL after Railway generates it. The Docker image sets `NEXT_PUBLIC_LOCAL_MODE=true` and `LOCAL_DATA_DIR=/app/.local-data`.
+4. Generate a Railway domain in the service's Settings/Networking, wait for the deployment health check at `/api/health`, then send your friends the domain and shared login. Anyone with that account can read, edit, export, and delete all shared workspace data, and can configure or trigger sends.
+
+Railway documents [Dockerfile builds](https://docs.railway.com/builds/dockerfiles) and [persistent volumes](https://docs.railway.com/volumes). A volume mount is necessary because app storage must survive deploys/restarts. Railway currently lists a free trial with $5 credits for 30 days, then $1/month and 0.5 GB volume; its Hobby plan has $5/month minimum usage. Check [current pricing](https://railway.com/pricing) before deploying. Real email sends still require a Resend API key and verified sender.
+
 ## Included
 
 - Multi-sheet CSV/XLS/XLSX parsing in a Web Worker, confidence scores, strict validation, source tracking, deduplication, and recipient review.

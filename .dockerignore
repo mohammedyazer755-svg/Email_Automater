@@ -1,0 +1,11 @@
+node_modules
+.next
+.next-e2e
+.local-data
+.env
+.env.*
+!.env.example
+.git
+coverage
+test-results
+playwright-report
