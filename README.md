@@ -1,110 +1,181 @@
-## Personal local mode
+# MailAutomator — Smart Email Automation Platform
 
-Set `NEXT_PUBLIC_LOCAL_MODE=true`, `LOCAL_LOGIN_EMAIL`, `LOCAL_LOGIN_PASSWORD`, and a random `LOCAL_SESSION_SECRET` (at least 32 characters) in `.env.local`. Keep the existing encryption key and cron secret. Restart `npm run dev`, open http://localhost:3000/login, and use those credentials. Google login and public signup are hidden in this mode. Supabase credentials are not needed.
+A modern web-based application for turning messy, unorganized spreadsheets (Google Forms exports, CSV, XLS, XLSX) into clean contact lists, composing personalized email campaigns, and securely delivering individual messages through a persistent queue.
 
-Contacts, templates, imports, campaigns, settings, and attachments are saved in `.local-data/` on this computer. Stop the app before backing up that directory, and preserve `.env.local` separately: its encryption key is needed to read saved provider credentials. Local mode supports one running server process; run it on a persistent computer, not a serverless host. Do not run development and production servers against the same directory simultaneously.
+---
 
-Real email delivery still requires a Resend key and verified sender in Settings. The local worker checks scheduled work every 15 seconds while the app is running. Jobs wait while the app is closed; delivery webhooks require a publicly reachable URL. Changing the local session secret signs out existing sessions. Local data is separate from any existing Supabase data.
+## Key Features
 
-# MailAutomator
+- **Intelligent Spreadsheet Parsing**: Content-based email detection across all sheets, columns, and rows without requiring rigid column names.
+- **Automated Cleaning & Deduplication**: Normalizes email addresses, skips blank and null cells, filters malformed entries, and removes duplicate addresses while tracking the original source location.
+- **Confidence Scoring & Diagnostics**: Calculates email density per column and presents a comprehensive import summary report.
+- **Rich-Text Composer & Reusable Templates**: Built with TipTap for formatted text, links, headings, bullet lists, and starter templates for event confirmations, reminders, announcements, and certificates.
+- **Individual Privacy-Preserving Delivery**: Sends messages individually to each recipient rather than exposing entire mailing lists via bulk CC or BCC.
+- **Controlled Rate Sending Queue**: Prevents rate limit throttling and mailbox provider rejections with exponential backoff and retry policies.
+- **Delivery Analytics & Webhooks**: Live tracking of Queued, Sending, Delivered, Failed, and Bounced states.
+- **Multi-Step Workflows**: Automated email sequences with configurable delays and condition checks.
+- **Multiple Provider Support**: Supports Resend API and Gmail via Google Apps Script relay.
+- **Two Operating Modes**: Cloud mode with Supabase and single-user persistent Local Mode.
 
-A Next.js application for turning messy spreadsheets into reviewed contact lists, writing email campaigns, and delivering individual messages through a persistent queue.
+---
 
-The project implements the spreadsheet engine, contact/group management, rich-text composer, templates, scheduled delivery, provider webhooks, campaign analytics, and multi-step workflows from Phases 2�7. Phase 8 includes security hardening, tests, documentation and deployment configuration. Live cloud provisioning and production validation require your Supabase, Resend and hosting accounts.
+## Getting Started
 
-## Get started
+### Prerequisites
+- Node.js 20+ (Node.js 22 LTS recommended)
+- npm or pnpm
+
+### Installation
 
 ```sh
-npm ci
+git clone https://github.com/mohammedyazer755-svg/Email_Automater.git
+cd Email_Automater/mail-automator
+npm install
 ```
 
-Copy `.env.example` to `.env.local`, fill in the Supabase public and service-role keys, set the application URL, and generate the encryption and cron secrets. For a new database, apply `supabase/schema.sql` once, then every numbered migration in `supabase/migrations/`. If Phase 1 is already deployed, apply only the migrations.
+---
+
+## Operating Modes
+
+### Option 1: Personal Local Mode (No Supabase Required)
+
+Local mode saves contacts, templates, imports, campaigns, and delivery logs in a `.local-data/` directory on your machine.
+
+1. Create or update `.env.local`:
+   ```env
+   NEXT_PUBLIC_LOCAL_MODE=true
+   LOCAL_LOGIN_EMAIL=admin@example.com
+   LOCAL_LOGIN_PASSWORD=your-secure-password
+   LOCAL_SESSION_SECRET=a-random-secret-at-least-32-chars-long
+   PROVIDER_KEY_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+   CRON_SECRET=your-cron-secret
+   NEXT_PUBLIC_APP_URL=http://localhost:3000
+   ```
+2. Start the development server:
+   ```sh
+   npm run dev
+   ```
+3. Open [http://localhost:3000/login](http://localhost:3000/login) and log in with your local credentials.
+
+---
+
+### Option 2: Cloud Mode (Supabase + PostgreSQL)
+
+1. Copy `.env.example` to `.env.local` and fill in your Supabase project keys:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   PROVIDER_KEY_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+   CRON_SECRET=your-cron-secret
+   NEXT_PUBLIC_APP_URL=http://localhost:3000
+   ```
+2. Apply the database migrations:
+   - Run `supabase/schema.sql` once on your Supabase SQL editor.
+   - Run all migration files in `supabase/migrations/` in sequential order.
+3. Start the application:
+   ```sh
+   npm run dev
+   ```
+4. Open [http://localhost:3000](http://localhost:3000) and sign up.
+
+---
+
+## Email Delivery Setup
+
+### Option A: Send via Gmail (Google Apps Script Relay — No Custom Domain Needed)
+
+This relay allows sending directly through your Gmail account over HTTPS:
+
+1. Open [Google Apps Script](https://script.google.com/home) while signed into the desired Gmail account and create a **New project**.
+2. Replace `Code.gs` with the contents of [`google-apps-script/Code.gs`](google-apps-script/Code.gs) and replace `REPLACE_WITH_YOUR_GMAIL_ADDRESS` with your email.
+3. In the function selector, select `setupRelay` and click **Run**. Grant permissions and copy the generated secret from the **Execution log**.
+4. Select `authorizeGmail` and click **Run** to authorize sending.
+5. Click **Deploy → New deployment → Web app**. Set **Execute as: Me** and **Who has access: Anyone**, then deploy and copy the URL ending in `/exec`.
+6. In MailAutomator **Settings → Provider**, select **Gmail (Google Apps Script)** and enter your Gmail address, `/exec` URL, and relay secret.
+7. Under **Settings → Senders**, add the same Gmail address and click **Check verification**.
+
+---
+
+### Option B: Send via Resend (Custom Domain)
+
+1. In MailAutomator **Settings → Provider**, select **Resend** and input your API key (`re_...`).
+2. Under **Settings → Senders**, add your verified domain sender identity (with SPF, DKIM, and DMARC records).
+
+---
+
+## Deployment on Railway
+
+The repository includes a production-ready `Dockerfile` for single-service container deployment:
+
+1. Create a new Railway project connected to your GitHub repository.
+2. In the app service, add a persistent volume mounted at `/app/.local-data`.
+3. Set environment variables:
+   - `NEXT_PUBLIC_LOCAL_MODE=true`
+   - `LOCAL_DATA_DIR=/app/.local-data`
+   - `LOCAL_LOGIN_EMAIL=your-email@domain.com`
+   - `LOCAL_LOGIN_PASSWORD=your-secure-password`
+   - `LOCAL_SESSION_SECRET=your-32-char-random-secret`
+   - `PROVIDER_KEY_ENCRYPTION_KEY=64-hex-characters`
+   - `CRON_SECRET=your-cron-secret`
+   - `NEXT_PUBLIC_APP_URL=https://your-app.up.railway.app`
+4. Generate a public Railway domain in **Networking** settings.
+
+---
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router, Turbopack)
+- **UI & Styling**: React 19, Tailwind CSS 4, shadcn/Radix UI, Lucide Icons
+- **Spreadsheet Parsing**: SheetJS (`xlsx`) in a Web Worker
+- **Rich-Text Editor**: TipTap
+- **Database & Auth**: PostgreSQL (Supabase / PGlite / Disk JSON store)
+- **Charts & Insights**: Recharts
+- **Testing**: Vitest, Playwright E2E
+
+---
+
+## Test & Build Checks
 
 ```sh
-npm run dev
-```
-
-Open http://localhost:3000 and sign up. Add a Resend key, webhook secret, and verified sender in Settings. Existing accounts can add the five starter templates from the template library.
-
-Sending requires the scheduled worker. Configure an external scheduler or use the included Vercel cron to call `GET /api/jobs` every minute with `Authorization: Bearer CRON_SECRET`. The Send button queues work durably; it does not launch an unreliable detached request.
-
-## Share the local account online
-
-The local account stores its database and attachments on disk, so deploy the app as one persistent Docker service with a mounted volume. Do not deploy this mode to Vercel/serverless functions or run more than one replica: they do not share the local database. The repository includes a Dockerfile configured for Railway.
-
-1. Push this repository to GitHub, then in Railway create a project from `mohammedyazer755-svg/Email_Automater`, branch `main`. Railway detects the root `Dockerfile` and builds local mode into the app.
-2. In the app service, create and attach a volume with mount path `/app/.local-data`. Keep one app replica.
-3. In the service Variables tab add `LOCAL_LOGIN_EMAIL`, `LOCAL_LOGIN_PASSWORD` (use the same local credentials you plan to share), `LOCAL_SESSION_SECRET` (a new random value with at least 32 characters), `CRON_SECRET`, and `PROVIDER_KEY_ENCRYPTION_KEY` (64 hex characters). Set `NEXT_PUBLIC_APP_URL` to the public URL after Railway generates it. The Docker image sets `NEXT_PUBLIC_LOCAL_MODE=true` and `LOCAL_DATA_DIR=/app/.local-data`.
-4. Generate a Railway domain in the service's Settings/Networking, wait for the deployment health check at `/api/health`, then send your friends the domain and shared login. Anyone with that account can read, edit, export, and delete all shared workspace data, and can configure or trigger sends.
-
-Railway documents [Dockerfile builds](https://docs.railway.com/builds/dockerfiles) and [persistent volumes](https://docs.railway.com/volumes). A volume mount is necessary because app storage must survive deploys/restarts. Railway currently lists a free trial with $5 credits for 30 days, then $1/month and 0.5 GB volume; its Hobby plan has $5/month minimum usage. Check [current pricing](https://railway.com/pricing) before deploying. Real email sends still require a Resend API key and verified sender.
-
-## Send from Gmail without a custom domain
-
-The Gmail option sends through Google Apps Script over HTTPS, so it works on Railway trial/free plans and does not require Resend or a domain. In the deployed app, open **Settings ? Provider ? Gmail (Google Apps Script)**.
-
-1. While signed into the Gmail account you want to send from, open [Google Apps Script](https://script.google.com/home) and click **New project**.
-2. Replace the starter code in `Code.gs` with the contents of [`google-apps-script/Code.gs`](google-apps-script/Code.gs). Replace `REPLACE_WITH_YOUR_GMAIL_ADDRESS` with your Gmail address. Save.
-3. At the top function picker, select `setupRelay` and click **Run**. Approve Google?s permission prompt. Open **Execution log** and copy the generated relay secret.
-4. Select `authorizeGmail` and click **Run**. Approve its Gmail sending permission.
-5. Click **Deploy ? New deployment ? Web app**. Set **Execute as: Me** and **Who has access: Anyone**, then click **Deploy**. Copy the URL ending in `/exec`.
-6. In MailAutomator **Settings ? Provider**, choose **Gmail (Google Apps Script)**. Enter the same Gmail address, the `/exec` URL, and the relay secret from the execution log. Click **Save settings**.
-7. Open **Settings ? Senders**, add that same Gmail address, and click **Check verification**. Then select it in your campaign.
-
-The relay sends as the Gmail account that owns the script. Keep its URL and secret private. A consumer Google account currently has an Apps Script sending quota of 100 recipients per day; Google can change quotas. See [Google?s quota page](https://developers.google.com/apps-script/guides/services/quotas).
-
-## Included
-
-- Multi-sheet CSV/XLS/XLSX parsing in a Web Worker, confidence scores, strict validation, source tracking, deduplication, and recipient review.
-- Paginated contacts, import history, groups, bulk actions, manual additions, and formula-safe CSV exports.
-- TipTap editor, starter/custom templates, private attachments, preview, drafts, tests, schedules and confirmation before sending.
-- Resend delivery with verified identities, encrypted user keys, atomic queue claims, stable idempotency keys, bounded retries and suppression.
-- Delivery reports, live progress, historical charts, and SQL-aggregated analytics.
-- Form-based workflows with email, wait, and condition steps; manual/import/scheduled enrollment; pause and recovery.
-- Authenticated and ownership-checked APIs, server-side HTML sanitization, persistent rate limits, strict mutation origin checks, RLS and service-only mutations.
-
-## Stack
-
-Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, shadcn/Radix UI, Supabase Auth/Postgres/Storage, SheetJS, TipTap, Resend, Recharts, Vitest, PGlite and Playwright. Node.js 22.12+ recommended.
-
-## Checks
-
-```sh
+# Run unit & database integration tests
 npm test
+
+# Run TypeScript checks
 npm run typecheck
+
+# Run linter
 npm run lint
+
+# Build for production
 npm run build
-npx playwright install chromium
-npm run test:e2e
 ```
 
-Unit tests exercise parsing, malformed addresses, 10,000-row workbooks, sanitization, encryption and retry policy. PostgreSQL integration tests apply the actual migrations in PGlite and exercise import ? campaign ? queue ? delivery, tenant isolation, webhook ordering and workflow progression. Browser tests cover public navigation and auth/API boundaries. The authenticated import-to-draft browser test runs when `E2E_EMAIL` and `E2E_PASSWORD` are configured; tests do not send real emails.
+---
 
-## Project layout
+## Project Structure
 
-- `app/(dashboard)`: workspace routes.
-- `components/platform`: data-backed screens; `components/email` and `components/charts`: lazy-loaded editors and charts.
-- `app/api`: authenticated resource, analytics, attachment, worker and webhook endpoints.
-- `lib/spreadsheet`, `lib/email`, `lib/automation`: processing engines.
-- `lib/server`: validation, authorization, encryption and resource handlers.
-- `supabase/migrations`: transactional jobs, security and reporting additions to Phase 1.
-- `tests`: unit, database integration and browser checks.
+```
+mail-automator/
+├── app/                  # Next.js App Router (pages & API endpoints)
+│   ├── (auth)/           # Login, signup, and authentication flows
+│   ├── (dashboard)/      # Protected workspace views (imports, campaigns, contacts, etc.)
+│   └── api/              # REST & webhook API endpoints
+├── components/           # UI primitives & platform screen components
+│   ├── platform/         # Data screens (imports, campaigns, contacts, composer, settings)
+│   ├── ui/               # Radix & shadcn components
+│   └── email/            # TipTap rich email editor
+├── lib/                  # Business logic & engines
+│   ├── spreadsheet/      # SheetJS parser, detector, validator, deduplicator, worker
+│   ├── email/            # Delivery engine, rate limiter, Resend & Gmail providers
+│   ├── automation/       # Multi-step workflow state machine
+│   └── server/           # Encryption, local storage, API security helpers
+├── supabase/             # Database schemas and migrations
+└── tests/                # Unit, integration, and Playwright test suites
+```
 
-## Documentation
+---
 
-- [Deployment and operations](docs/DEPLOYMENT.md)
-- [User guide](docs/USER_GUIDE.md)
-- [API reference](docs/API.md)
-- [Contributing](CONTRIBUTING.md)
-- [Sample spreadsheet](docs/sample-contacts.csv)
+## License
 
-Imports and campaigns support up to 10,000 recipients; files and total campaign attachments are capped at 10 MB. Worker throughput is bounded by a single global lease and configured provider rate. Each workflow enrolls a contact once; scheduled runs pick up newly eligible contacts. Billing is intentionally a future placeholder. Production delivery, domain verification, OAuth, and uptime monitoring must be checked in the deployed environment.
-
-## Screenshots
-
-Browser-tested screens below use local fixture data.
-
-![Spreadsheet review](docs/screenshots/import-review.png)
-![Campaign preview](docs/screenshots/campaign-preview.png)
-
-See [implementation status](docs/IMPLEMENTATION_STATUS.md) for completed scope, operating limits, and the remaining production setup.
+MIT License. Designed and built for organizers, clubs, and teams who value clean communication.

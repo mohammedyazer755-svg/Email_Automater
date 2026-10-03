@@ -1,0 +1,9 @@
+Name,Email,Notes
+Arun,arun@gmail.com,Registration lead
+Priya,NULL,NULL
+Rahul,Contact: rahul@gmail.com,Phone: 9123456780
+Kiran,kiran@gmail.com / 9876543210,Volunteer
+Alex,alex@demo.example,Sample contact
+Sam,sam@demo.example,Sample contact
+Alex Duplicate,ALEX@DEMO.EXAMPLE,Duplicate address
+Invalid Entry,bad@@demo.example,Invalid format

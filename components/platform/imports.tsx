@@ -80,17 +80,28 @@ export function ImportNew() {
           <p className="my-2 text-sm text-slate-500">
             CSV, XLS or XLSX · Up to 10 MB · Up to 10,000 recipients per import
           </p>
-          <input
-            aria-label="Upload spreadsheet"
-            type="file"
-            accept=".csv,.xlsx,.xls"
-            disabled={busy}
-            onChange={(e) => {
-              if (e.target.files?.[0]) process(e.target.files[0]);
-            }}
-          />
-        </div>
-      </Panel>
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <input
+                aria-label="Upload spreadsheet"
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                disabled={busy}
+                onChange={(e) => {
+                  if (e.target.files?.[0]) process(e.target.files[0]);
+                }}
+              />
+            </div>
+            <div className="mt-3">
+              <a
+                href="/sample-contacts.csv"
+                download="sample-contacts.csv"
+                className="text-xs text-indigo-600 hover:text-indigo-700 hover:underline inline-flex items-center gap-1 font-medium"
+              >
+                <span>Download sample CSV template</span>
+              </a>
+            </div>
+          </div>
+        </Panel>
       <div className="my-5">
         <State loading={busy} error={error} />
         {busy && (
